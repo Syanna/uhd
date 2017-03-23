@@ -119,6 +119,36 @@ extern "C" {
 				( CRIMSON_TNG_VITA_TLR_E      << 7) |\
 				( CRIMSON_TNG_VITA_TLR_PCKCNT << 0) )
 
+#define CRIMSON_TNG_VITA_HEADER_LEN                 32
+#define CRIMSON_TNG_VITA_STREAM_OFFSET              28
+#define CRIMSON_TNG_VITA_STREAM_MASK                0xF0000000
+#define CRIMSON_TNG_VITA_CLASS_OFFSET               27
+#define CRIMSON_TNG_VITA_CLASS_MASK                 0x08000000
+#define CRIMSON_TNG_VITA_TRAIL_OFFSET               26
+#define CRIMSON_TNG_VITA_TRAIL_MASK                 0x04000000
+#define CRIMSON_TNG_VITA_INTSTMP_OFFSET             22
+#define CRIMSON_TNG_VITA_INTSTMP_MASK               0x00C00000
+#define CRIMSON_TNG_VITA_FRASTMP_OFFSET             20
+#define CRIMSON_TNG_VITA_FRASTMP_MASK               0x00300000
+#define CRIMSON_TNG_VITA_PACKET_COUNT_OFFSET        16
+#define CRIMSON_TNG_VITA_PACKET_COUNT_MASK          0x000F0000
+#define CRIMSON_TNG_VITA_PACKET_SIZE_OFFSET         0
+#define CRIMSON_TNG_VITA_PACKET_SIZE_MASK           0x0000FFFF
+
+//TimeStamp-Integer field
+#define CRIMSON_TNG_VITA_NO_INT_STMP                0
+#define CRIMSON_TNG_VITA_INT_UTC_STMP               1
+#define CRIMSON_TNG_VITA_INT_GPS_STMP               2
+#define CRIMSON_TNG_VITA_INT_OTHER_STMP             3
+    
+//TimeStamp-Fractional field
+#define CRIMSON_TNG_VITA_NO_FRAC_STMP               0
+#define CRIMSON_TNG_VITA_SAMPLE_COUNT_STMP          1
+#define CRIMSON_TNG_VITA_REAL_TIME_STMP             2
+#define CRIMSON_TNG_VITA_FREE_RUN_STMP              3
+    
+#define PICOSECOND_TO_SECOND                        (10^12)
+    
 #ifdef __cplusplus
 }
 #endif
