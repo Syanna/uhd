@@ -603,7 +603,38 @@ private:
 			_underflow_flag[i] = false;
 		}
 	}
-
+        
+        void vita_setup_handler(size_t i){
+            
+        }
+        
+        void vita_framer(const tx_metadata_t* metadata, const buffs_type &buffs){
+            uint32_t full_secs;
+            uint64_t frac_secs;
+            
+            //Just some test code, this probably isnt the best way to do things
+            std::vector<uint32_t> vita_packet = 0;
+            uint32_t header = 0;
+            //Currently, it doesnt seem like we are using the class/stream/trailer for anything
+            //so we can leave it set to zero
+            
+            
+            //Are we only taking care of up to the fractional timestamp?
+            if(metadata ->has_time_spec){
+                if(metadata->start_of_burst){
+                    full_secs = static_cast<uint32_t>(metadata->time_spec.get_full_secs());
+                    frac_secs = static_cast<uint64_t>(metadata->time_spec.get_frac_secs()*PICOSECOND_TO_SECOND);
+                    header = header | (CRIMSON_TNG_VITA_INT_UTC_STMP << CRIMSON_TNG_VITA_INTSTMP_OFFSET);
+                    header = header | (CRIMSON_TNG_VITA_REAL_TIME_STMP << CRIMSON_TNG_VITA_FRASTMP_OFFSET);
+                }
+            }
+            vita_packet.push_back(header);
+            vita_packet.push_back(static_cast<uint32_t>(frac_secs >> 32));
+            vita_packet.push_back(static_cast<uint32_t>(frac_secs) & 0x00000000FFFFFFFF);
+        }
+        
+        
+        
 	// helper function to swap bytes, within 32-bits
 	void _32_align(uint32_t* data) {
 		*data = (*data & 0x000000ff) << 24 |
