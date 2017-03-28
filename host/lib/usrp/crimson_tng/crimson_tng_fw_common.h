@@ -135,6 +135,13 @@ extern "C" {
 #define CRIMSON_TNG_VITA_PACKET_SIZE_OFFSET         0
 #define CRIMSON_TNG_VITA_PACKET_SIZE_MASK           0x0000FFFF
 
+#define CRIMSON_TNG_VITA_HEADER_SIZE                1
+#define CRIMSON_TNG_VITA_STREAM_SIZE                1
+#define CRIMSON_TNG_VITA_CLASS_SIZE                 2
+#define CRIMSON_TNG_VITA_INTSTMP_SIZE               1
+#define CRIMSON_TNG_VITA_FRASTMP_SIZE               2
+#define CRIMSON_TNG_VITA_TRAILER_SIZE               1
+    
 //TimeStamp-Integer field
 #define CRIMSON_TNG_VITA_NO_INT_STMP                0
 #define CRIMSON_TNG_VITA_INT_UTC_STMP               1
@@ -146,7 +153,7 @@ extern "C" {
 #define CRIMSON_TNG_VITA_SAMPLE_COUNT_STMP          1
 #define CRIMSON_TNG_VITA_REAL_TIME_STMP             2
 #define CRIMSON_TNG_VITA_FREE_RUN_STMP              3
-    
+
 #define PICOSECOND_TO_SECOND                        (10^12)
     
 #ifdef __cplusplus
