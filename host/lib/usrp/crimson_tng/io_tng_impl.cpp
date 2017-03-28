@@ -378,7 +378,7 @@ public:
                                         std::vector<char> send_buff = static_cast<vector<char>>(copy_buffs[i]);
                                         
                                         for(int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
-                                            vita_header.push_back(send_buff[i]);
+                                            vita_header.push_back(send_buff[j + samp_ptr_offset]);
                                         }
                                         
 					//Send data (byte operation)
@@ -392,7 +392,8 @@ public:
 					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
 					else _last_time[i] = time_spec_t::get_system_time();
 
-				} else {
+				} 
+                                else{
 					if (_en_fc) {
 						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
 							update_samplerate(i);
@@ -406,33 +407,38 @@ public:
                                         std::vector<char> send_buff = static_cast<vector<char>>(copy_buffs[i]);
                                         
                                         //Two cases needed to be accounted for
-                                        //1) Remaining bytes + vita header is <= CRIMSON_TNG_MAX_MTU
-                                        //2) Remaining bytes + vita header us > CRIMSON_TNG_MAX_MTU
+                                        //1) Remaining bytes + vita header is >= CRIMSON_TNG_MAX_MTU
+                                        //2) Remaining bytes + vita header us < CRIMSON_TNG_MAX_MTU
                                         
-                                        if(vita_header_byte_size + remaining_bytes[i] > CRIMSON_TNG_MAX_MTU){
+                                        if(vita_header_byte_size + remaining_bytes[i] >= CRIMSON_TNG_MAX_MTU){
+                                            for(int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
+                                                vita_header.push_back(send_buff[j + samp_ptr_offset]);
+                                            }
+                                            ret += _udp_stream[i] -> stream_out(static_cast<void*>(vita_header), CRIMSON_TNG_MAX_MTU);
+                                            ret -= vita_header_byte_size;
                                             
+                                            //update last_time with when it was supposed to have been sent:
+                                            time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+                                            if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+                                            else _last_time[i] = time_spec_t::get_system_time();
                                         }
                                         else{
-                                            for(int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
-                                                vita_header.push_back(send_buff[i]);
-                                            } 
-                                        }
-                                        
-                                        
-					//Send data (byte operation)
-					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, remaining_bytes[i]);
-                                        
-                                        
-					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
-					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-					else _last_time[i] = time_spec_t::get_system_time();
-
-					if (num_instances > 1) {
+                                            for(int j = 0; j < remaining_bytes[i]; j++){
+                                                vita_header.push_back(send_buff[j + samp_ptr_offset]);
+                                            }
+                                            ret += _udp_stream[i] -> stream_out(static_cast<void*>(vita_header), remaining_bytes[i] + vita_header_byte_size);
+                                            ret -= vita_header_byte_size;
+                                            
+                                            //update last_time with when it was supposed to have been sent:
+                                            time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
+                                            if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
+                                            else _last_time[i] = time_spec_t::get_system_time();  
+                                               
+                                            if (num_instances > 1) {
 						boost::this_thread::sleep(boost::posix_time::microseconds(1));
-					}
-
-				}
+                                            }
+                                        }
+                                    }
 				remaining_bytes[i] -= ret;
 				samp_sent += ret;
 			}
