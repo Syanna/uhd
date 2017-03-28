@@ -329,7 +329,7 @@ public:
 		return (samp_sent / 4) / _channels.size();// -  vita_hdr - vita_tlr;	// vita is disabled
 	}*/
         
-        std::vector<char> vita_framer(const tx_metadata_t* metadata, size_t packet_size, int first_packet){
+        std::vector<char> vita_framer(const tx_metadata_t& metadata, int packet_size, bool first_packet){
             uint32_t full_secs;
             uint64_t frac_data;
             int i;
@@ -439,7 +439,7 @@ public:
                                         if(sob_packet){
                                             sob_packet = false;
                                         }
-                                        size_t vita_header_byte_size = vita_header.size();
+                                        unsigned int vita_header_byte_size = vita_header.size();
                                         std::vector<char> send_buff = static_cast<std::vector<char>>(copy_buffs[i]);
                                         
                                         for(int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
