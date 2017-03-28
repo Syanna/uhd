@@ -440,14 +440,14 @@ public:
                                             sob_packet = false;
                                         }
                                         unsigned int vita_header_byte_size = vita_header.size();
-                                        std::vector<char> send_buff = static_cast<std::vector<char>>(copy_buffs[i]);
+                                        std::vector<char> send_buff = const_cast<std::vector<char>>(copy_buffs[i]);
                                         
                                         for(int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
                                             vita_header.push_back(send_buff[j + samp_ptr_offset]);
                                         }
                                         
 					//Send data (byte operation)
-                                        ret += _udp_stream[i] -> stream_out(vita_header, CRIMSON_TNG_MAX_MTU);
+                                        ret += _udp_stream[i] -> stream_out((const void*)vita_header, CRIMSON_TNG_MAX_MTU);
                                         ret -= vita_header_byte_size;
 					//ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_TNG_MAX_MTU);
 
@@ -469,17 +469,17 @@ public:
                                             sob_packet = false;
                                         }
                                         size_t vita_header_byte_size = vita_header.size();
-                                        std::vector<char> send_buff = static_cast<std::vector<char>>(copy_buffs[i]);
+                                        std::vector<char> send_buff = const_cast<std::vector<char>>(copy_buffs[i]);
                                         
                                         //Two cases needed to be accounted for
                                         //1) Remaining bytes + vita header is >= CRIMSON_TNG_MAX_MTU
                                         //2) Remaining bytes + vita header us < CRIMSON_TNG_MAX_MTU
                                         
                                         if(vita_header_byte_size + remaining_bytes[i] >= CRIMSON_TNG_MAX_MTU){
-                                            for(int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
+                                            for(unsigned int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
                                                 vita_header.push_back(send_buff[j + samp_ptr_offset]);
                                             }
-                                            ret += _udp_stream[i] -> stream_out(vita_header, CRIMSON_TNG_MAX_MTU);
+                                            ret += _udp_stream[i] -> stream_out((const void*)vita_header, CRIMSON_TNG_MAX_MTU);
                                             ret -= vita_header_byte_size;
                                             
                                             //update last_time with when it was supposed to have been sent:
@@ -488,10 +488,10 @@ public:
                                             else _last_time[i] = time_spec_t::get_system_time();
                                         }
                                         else{
-                                            for(int j = 0; j < remaining_bytes[i]; j++){
+                                            for(unsigned int j = 0; j < remaining_bytes[i]; j++){
                                                 vita_header.push_back(send_buff[j + samp_ptr_offset]);
                                             }
-                                            ret += _udp_stream[i] -> stream_out(vita_header, remaining_bytes[i] + vita_header_byte_size);
+                                            ret += _udp_stream[i] -> stream_out((const void*)vita_header, remaining_bytes[i] + vita_header_byte_size);
                                             ret -= vita_header_byte_size;
                                             
                                             //update last_time with when it was supposed to have been sent:
