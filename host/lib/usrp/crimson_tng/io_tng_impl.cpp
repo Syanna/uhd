@@ -351,6 +351,10 @@ public:
                     
                 std::vector<void*> copy_buffs = static_cast<vector<void*>>(buffs);
                 
+                UHD_MSG(status) << "Beginner of send..." << std::endl;
+                UHD_MSG(status) << "Remaining bytes: " << remaining_bytes[0] << std::endl;
+                UHD_MSG(status) << "CRIMSON_TNG_MAX_MTU: " << CRIMSON_TNG_MAX_MTU << std::endl;
+                
 		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
@@ -430,7 +434,7 @@ public:
                                             ret -= vita_header_byte_size;
                                             
                                             //update last_time with when it was supposed to have been sent:
-                                            time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_samp_rate[i]);
+                                            time_spec_t wait = time_spec_t(0, (double)((remaining_bytes[i] + vita_header_byte_size)/4) / (double)_samp_rate[i]);
                                             if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
                                             else _last_time[i] = time_spec_t::get_system_time();  
                                                
