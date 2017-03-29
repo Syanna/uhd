@@ -398,7 +398,6 @@ public:
 	{
                 
                 std::vector<char> vita_header;
-                std::vector<void*> vita_buff;
                 bool sob_packet = true;
                 
                 size_t samp_sent =0;
@@ -427,6 +426,7 @@ public:
 				setup_steadystate(i);
                                 
 				size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);           
+                                std::vector<void *> final_buff;
                                 
 				//If greater then max pl copy over what you can, leave the rest
 				if (remaining_bytes[i] >= CRIMSON_TNG_MAX_MTU){
@@ -445,9 +445,9 @@ public:
                                         for(int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
                                             vita_header.push_back(send_buff[j + samp_ptr_offset]);
                                         }
-                                        
+                                        final_buff.push_back(&vita_header.front());
 					//Send data (byte operation)
-                                        ret += _udp_stream[i] -> stream_out((const void*)vita_header, CRIMSON_TNG_MAX_MTU);
+                                        ret += _udp_stream[i] -> stream_out(final_buff, CRIMSON_TNG_MAX_MTU);
                                         ret -= vita_header_byte_size;
 					//ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_TNG_MAX_MTU);
 
@@ -479,7 +479,9 @@ public:
                                             for(unsigned int j = 0; j < CRIMSON_TNG_MAX_MTU - vita_header_byte_size; j++){
                                                 vita_header.push_back(send_buff[j + samp_ptr_offset]);
                                             }
-                                            ret += _udp_stream[i] -> stream_out((const void*)vita_header, CRIMSON_TNG_MAX_MTU);
+                                            final_buff.push_back(&vita_header.front());
+
+                                            ret += _udp_stream[i] -> stream_out(final_buff, CRIMSON_TNG_MAX_MTU);
                                             ret -= vita_header_byte_size;
                                             
                                             //update last_time with when it was supposed to have been sent:
@@ -491,7 +493,9 @@ public:
                                             for(unsigned int j = 0; j < remaining_bytes[i]; j++){
                                                 vita_header.push_back(send_buff[j + samp_ptr_offset]);
                                             }
-                                            ret += _udp_stream[i] -> stream_out((const void*)vita_header, remaining_bytes[i] + vita_header_byte_size);
+                                            final_buff.push_back(&vita_header.front());
+
+                                            ret += _udp_stream[i] -> stream_out(final_buff, remaining_bytes[i] + vita_header_byte_size);
                                             ret -= vita_header_byte_size;
                                             
                                             //update last_time with when it was supposed to have been sent:
