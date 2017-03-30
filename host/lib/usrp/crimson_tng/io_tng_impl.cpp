@@ -469,7 +469,7 @@ public:
                                             sob_packet = false;
                                         }
                                         size_t vita_header_byte_size = vita_header.size();
-                                        std::vector<char> send_buff = const_cast<std::vector<char>>(copy_buffs[i]);
+                                        std::vector<char> send_buff = buffs[i];
                                         
                                         //Two cases needed to be accounted for
                                         //1) Remaining bytes + vita header is >= CRIMSON_TNG_MAX_MTU
