@@ -37,6 +37,9 @@ using namespace std;
 static std::map<const std::string,int> to = { { "A", 0 }, { "B", 1 }, { "C", 2 }, { "D", 3 } };
 static std::map<int,const std::string> fro = { { 0, "A" }, { 1, "B" }, { 2, "C" }, { 3, "D" } };
 
+/*
+// XXX: @CF: kb #3773
+
 //
 // <SNIP src="http://archive.oreilly.com/network/2003/05/06/examples/calculatorexample.html">
 //
@@ -260,6 +263,8 @@ private:
 // </SNIP>
 //
 
+*/
+
 /***********************************************************************
  * StreamData Class for buffering data for several channels at once from file
  *
@@ -325,9 +330,12 @@ public:
 
 		std::ifstream fs( fn );
 
+		/*
+		 // XXX: @CF: kb #3773
 		symtab_t variables;
 		calculator calc( variables );
 		variables["pi"] = 3.141592653589792;
+		*/
 
 		for( lineno = 0; ; lineno++ ) {
 			std::getline( (std::istream&) fs, line );
@@ -346,25 +354,33 @@ public:
 
 			case 1:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.rx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.rx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.rx_center_freq[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
 			case 2:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.tx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.tx_center_freq[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.tx_center_freq[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
 			case 3:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.rx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.rx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.rx_sample_rate[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
 			case 4:
 				for( unsigned i = 0; i < r.n_channels; i++ ) {
-					r.tx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					// XXX: @CF: kb #3773
+					//r.tx_sample_rate[ r.channels[ i ] ] = calc.crunch( split[ i ] );
+					r.tx_sample_rate[ r.channels[ i ] ] = stod( split[ i ] );
 				}
 				break;
 
@@ -668,9 +684,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     std::cout << boost::format("Creating the transmit crimson device with: %s...") % tx_args << std::endl;
     uhd::usrp::multi_usrp::sptr tx_usrp = uhd::usrp::multi_usrp::make(tx_args);
 
-    std::cout << boost::format("Creating the receive usrp device with: %s...") % rx_args << std::endl;
-    uhd::usrp::multi_usrp::sptr rx_usrp = uhd::usrp::multi_usrp::make(rx_args);
-
     //detect which channels to use
     std::vector<size_t> tx_channel_nums;
     for( std::string &n: input_stream_data.channels ) {
@@ -683,7 +696,6 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
     }
 
     std::cout << boost::format("Using Device: %s") % tx_usrp->get_pp_string() << std::endl;
-    std::cout << boost::format("Using Device: %s") % rx_usrp->get_pp_string() << std::endl;
 
     //set the transmit sample rate
     for( const auto& kv: input_stream_data.tx_sample_rate ) {
@@ -741,9 +753,13 @@ int UHD_SAFE_MAIN(int argc, char *argv[]){
 	std::signal(SIGINT, &sig_int_handler);
 	std::cout << "Press Ctrl + C to stop streaming..." << std::endl;
 
+	/*
+    XXX: @CF: Setting device timestamp to an arbitrary value (such as zero) can negatively
+    	 affect Crimson TNG time synchronization. The user is strongly discouraged from doing so.
+    */
     //reset usrp time to prepare for transmit/receive
-    std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
-    tx_usrp->set_time_now(uhd::time_spec_t(0.0));
+	// std::cout << boost::format("Setting device timestamp to 0...") << std::endl;
+	// tx_usrp->set_time_now(uhd::time_spec_t(0.0));
 
     //start transmit worker thread
     boost::thread_group transmit_thread;
