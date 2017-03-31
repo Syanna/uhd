@@ -291,82 +291,14 @@ public:
 //		_samp_rate_usr[channel] = _samp_rate[channel];
 //	}
         
-        //Old Copy of send, if you are seeing this, then this was accidentally left into the code
-	/*size_t send(
-        	const buffs_type &buffs,
-        	const size_t nsamps_per_buff,
-        	const tx_metadata_t &metadata,
-        	const double timeout = 0.1)
-	{
-		size_t samp_sent =0;
-		size_t remaining_bytes[_channels.size()];
-		for (unsigned int i = 0; i < _channels.size(); i++) {
-			remaining_bytes[i] =  (nsamps_per_buff * 4);
+		double tx_metadata_t_to_double(const tx_metadata_t& metadata){
+			return metadata.time_spec.get_real_secs() + metadata.time_spec.get_frac_secs();
 		}
 
-		// Timeout
-		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
-
-		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
-			// send to each connected stream data in buffs[i]
-			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
-
-				// Skip Channel is Nothing left to send
-				if (remaining_bytes[i] == 0) continue;
-				size_t ret = 0;
-				// update sample rate if we don't know the sample rate
-				setup_steadystate(i);
-
-				size_t samp_ptr_offset = ((nsamps_per_buff*4) - remaining_bytes[i]);
-
-				//If greater then max pl copy over what you can, leave the rest
-				if (remaining_bytes[i] >= CRIMSON_TNG_MAX_MTU){
-					if (_en_fc) {
-						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
-							update_samplerate(i);
-						}
-					}
-					//Send data (byte operation)
-					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_TNG_MAX_MTU);
-
-					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_crimson_samp_rate[i]);
-
-					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-					else _last_time[i] = time_spec_t::get_system_time();
-
-				} else {
-					if (_en_fc) {
-						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
-							update_samplerate(i);
-						}
-					}
-
-					//Send data (byte operation)
-					ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, remaining_bytes[i]);
-
-					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(remaining_bytes[i]/4) / (double)_crimson_samp_rate[i]);
-					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-					else _last_time[i] = time_spec_t::get_system_time();
-
-					if (num_instances > 1) {
-						boost::this_thread::sleep(boost::posix_time::microseconds(1));
-					}
-
-				}
-				remaining_bytes[i] -= ret;
-				samp_sent += ret;
-			}
-
-			// Exit if Timeout has lapsed
-			if (time_spec_t::get_system_time() > timeout_lapsed)
-				return (samp_sent / 4) / _channels.size();
+		bool start_of_burst(const tx_metadata_t& metadata){
+			return (metadata.start_of_burst) ? true : false;
 		}
 
-		return (samp_sent / 4) / _channels.size();// -  vita_hdr - vita_tlr;	// vita is disabled
-	}*/
-        
         std::vector<char> vita_framer(const tx_metadata_t& metadata, size_t packet_size, bool first_packet){
             uint32_t full_secs;
             uint64_t frac_data;
@@ -428,31 +360,36 @@ public:
             return vita_packet;
         }
         
-        size_t send(
-        	const buffs_type &buffs,
-        	const size_t nsamps_per_buff,
-        	const tx_metadata_t &metadata,
-        	const double timeout = 0.1)
+	size_t send(
+		const buffs_type &buffs,
+		const size_t nsamps_per_buff,
+		const tx_metadata_t &metadata,
+		const double timeout = 0.1)
 	{
                 
 		std::vector<char> vita_header;
-		bool sob_packet = true;
+		bool sob_packet[_channels.size()];
                 
                 size_t samp_sent =0;
 		size_t remaining_bytes[_channels.size()];
 		for (unsigned int i = 0; i < _channels.size(); i++) {
 			remaining_bytes[i] =  (nsamps_per_buff * 4);
+			sob_packet[i] = true;
 		}
                     
 		// Timeout
-		time_spec_t timeout_lapsed = time_spec_t::get_system_time() + time_spec_t(timeout);
-                    
-				//std::vector<void*> copy_buffs = (std::vector<void*>)buffs;
-                
-                UHD_MSG(status) << "Beginner of send..." << std::endl;
-                UHD_MSG(status) << "Remaining bytes: " << remaining_bytes[0] << std::endl;
-                UHD_MSG(status) << "CRIMSON_TNG_MAX_MTU: " << CRIMSON_TNG_MAX_MTU << std::endl;
-                
+		time_spec_t timeout_lapsed = _crimson_tng_impl->get_multi()->get_time_now() + time_spec_t(timeout);
+
+		UHD_MSG(status) << "Beginner of send..." << std::endl;
+		UHD_MSG(status) << "Remaining bytes: " << remaining_bytes[0] << std::endl;
+		UHD_MSG(status) << "CRIMSON_TNG_MAX_MTU: " << CRIMSON_TNG_MAX_MTU << std::endl;
+
+		//Let Flow control know that there is an incoming SOB packet
+		double sob_time = tx_metadata_t_to_double(metadata);
+		if(start_of_burst(metadata)){
+			_sob_time = sob_time;
+		}
+
 		while ((samp_sent / 4) < (nsamps_per_buff * _channels.size())) {			// All Samples for all channels must be sent
 			// send to each connected stream data in buffs[i]
 			for (unsigned int i = 0; i < _channels.size(); i++) {					// buffer to read in data plus room for VITA
@@ -469,13 +406,13 @@ public:
 				//If greater then max pl copy over what you can, leave the rest
 				if (remaining_bytes[i] >= CRIMSON_TNG_MAX_MTU){
 					if (_en_fc) {
-						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
+						while ( (_crimson_tng_impl->get_multi()->get_time_now() < _last_time[i]) || _overflow_flag[i] ) {
 							update_samplerate(i);
 						}
 					}
-					vita_header =  vita_framer(metadata, CRIMSON_TNG_MAX_MTU, sob_packet);
-					if(sob_packet){
-						sob_packet = false;
+					vita_header =  vita_framer(metadata, CRIMSON_TNG_MAX_MTU, sob_packet[i]);
+					if(sob_packet[i]){
+						sob_packet[i] = false;
 					}
 					unsigned int vita_header_byte_size = vita_header.size();
 					uint8_t *send_buff = (uint8_t *)buffs[i];
@@ -490,26 +427,25 @@ public:
 					//ret += _udp_stream[i] -> stream_out(buffs[i] + samp_ptr_offset, CRIMSON_TNG_MAX_MTU);
 
 					//update last_time with when it was supposed to have been sent:
-					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+					time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_crimson_samp_rate[i]);
 
 					if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-					else _last_time[i] = time_spec_t::get_system_time();
+					else _last_time[i] = _crimson_tng_impl->get_multi()->get_time_now();
 
 				} 
 				else{
 					if (_en_fc) {
-						while ( (time_spec_t::get_system_time() < _last_time[i]) || _overflow_flag[i] ) {
+						while ( (_crimson_tng_impl->get_multi()->get_time_now() < _last_time[i]) || _overflow_flag[i] ) {
 							update_samplerate(i);
 						}
 					}
-						vita_header =  vita_framer(metadata, remaining_bytes[i], sob_packet);
-						if(sob_packet){
-							sob_packet = false;
+						vita_header =  vita_framer(metadata, remaining_bytes[i], sob_packet[i]);
+						if(sob_packet[i]){
+							sob_packet[i] = false;
 						}
 						size_t vita_header_byte_size = vita_header.size();
 
 						uint8_t *send_buff = (uint8_t *)buffs[i];
-//                                        std::vector<char> send_buff = buffs[i];
 
 						//Two cases needed to be accounted for
 						//1) Remaining bytes + vita header is >= CRIMSON_TNG_MAX_MTU
@@ -525,9 +461,9 @@ public:
 							ret -= vita_header_byte_size;
 
 							//update last_time with when it was supposed to have been sent:
-							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_samp_rate[i]);
+							time_spec_t wait = time_spec_t(0, (double)(CRIMSON_TNG_MAX_MTU / 4.0) / (double)_crimson_samp_rate[i]);
 							if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-							else _last_time[i] = time_spec_t::get_system_time();
+							else _last_time[i] = _crimson_tng_impl->get_multi()->get_time_now();
 						}
 						else{
 							for(unsigned int j = 0; j < remaining_bytes[i]; j++){
@@ -539,9 +475,9 @@ public:
 							ret -= vita_header_byte_size;
 
 							//update last_time with when it was supposed to have been sent:
-							time_spec_t wait = time_spec_t(0, (double)((remaining_bytes[i] + vita_header_byte_size)/4) / (double)_samp_rate[i]);
+							time_spec_t wait = time_spec_t(0, (double)((remaining_bytes[i] + vita_header_byte_size)/4) / (double)_crimson_samp_rate[i]);
 							if (_en_fc)_last_time[i] = _last_time[i]+wait;//time_spec_t::get_system_time();
-							else _last_time[i] = time_spec_t::get_system_time();
+							else _last_time[i] = _crimson_tng_impl->get_multi()->get_time_now();
 
 							if (num_instances > 1) {
 								boost::this_thread::sleep(boost::posix_time::microseconds(1));
@@ -1036,32 +972,33 @@ private:
 		}
 	}
         
-        void vita_setup_steadystate(size_t i){
-            if(_samp_rate[i] == 0){
-                //Get sample rate
-                std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
-			_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
+	void vita_setup_steadystate(size_t i) {	// i is the channel assignment
+			if (_crimson_samp_rate[i] == 0) {	// Handle UnderFlow if it occurs
+				//Get sample rate
+				std::string ch = boost::lexical_cast<std::string>((char)(_channels[i] + 65));
+				_crimson_samp_rate[i] = _tree->access<double>("/mboards/0/tx_dsps/Channel_"+ch+"/rate/value").get();
 
-			//Set the user set sample rate to refer to later
-			_samp_rate_usr[i] = _samp_rate[i];
+				//Set the user set sample rate to refer to later
+				_host_samp_rate[i] = _crimson_samp_rate[i];
 
-			// Set FIFO level steady state target accordingly
-			if (_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
-				_fifo_level_perc[i] = 50;
-			else
-				_fifo_level_perc[i] = 80;
-            }
-            if (_underflow_flag[i]) {
-			//Adjust sample rate to fill up buffer in first half second
-			//we do this by setting the "last time " data was sent to be half a buffers worth in the past
-			//each element in the buffer is 1 samples worth
-			time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_TNG_BUFF_SIZE)) / (double)_samp_rate[i]);
-			_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
-			//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
+				// Set FIFO level steady state target accordingly
+				if (_crimson_samp_rate[i] < CRIMSON_TNG_SS_FIFOLVL_THRESHOLD)
+					_fifo_level_perc[i] = 50;
+				else
+					_fifo_level_perc[i] = 80;
+			}
 
-			_underflow_flag[i] = false;
-            }
-        }
+			if (_crimson_samp_rate[i] == 0 || _underflow_flag[i]) {
+				//Adjust sample rate to fill up buffer in first half second
+				//we do this by setting the "last time " data was sent to be half a buffers worth in the past
+				//each element in the buffer is 1 samples worth
+				time_spec_t past_buffer_ss = time_spec_t(0, (_fifo_level_perc[i]/100*(double)(CRIMSON_TNG_BUFF_SIZE)) / (double)_crimson_samp_rate[i]);
+				_last_time[i] = time_spec_t::get_system_time()-past_buffer_ss;
+				//_timer_tofreerun = time_spec_t::get_system_time() + time_spec_t(15, 0);
+
+				_underflow_flag[i] = false;
+			}
+		}
        
         
         
